@@ -10,3 +10,6 @@ desktop.ini
 
 # Local tooling / logs
 icons/_gen.log
+
+# Local convenience copies (e.g. renamed seed file for copying to a phone)
+CountdownTimer_*.json
