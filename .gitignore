@@ -1,0 +1,12 @@
+# Prototype sandbox — not part of the shipped app
+prototypes/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Local tooling / logs
+icons/_gen.log

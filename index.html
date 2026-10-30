@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="Count down to the dates that matter — birthdays, deadlines, trips. Works offline, installs as an app, nothing leaves your device." />
+<meta name="theme-color" content="#5b8def" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0f1420" media="(prefers-color-scheme: dark)" />
+<title>Countdown Timer</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./icons/icon.svg" />
+<style>
+  /* =====================================================================
+     MOBILE-FIRST. Base = phone; (min-width) enhances upward. Two colour
+     axes: MODE (light/dark via data-theme) and PALETTE (hue via JS tokens).
+  ===================================================================== */
+  :root {
+    --primary: #5b8def;
+    --primary-strong: #3f6fd6;
+    --accent: #e0a94a;
+    --danger: #e0574a;
+    --ok: #3bb273;
+
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface-2: #eef1f8;
+    --border: #d9deeb;
+    --text: #1e2636;
+    --text-light: #5d6782;
+    --muted: #8a93a8;
+    --shadow: 0 2px 10px rgba(30, 38, 54, 0.08);
+    --shadow-lift: 0 6px 20px rgba(30, 38, 54, 0.14);
+
+    --radius: 14px;
+    --radius-sm: 10px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --t-fast: 140ms ease-out;
+    --t-med: 200ms ease-out;
+
+    --tap: 44px;
+    --banner-grad: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+    --bottom-nav-h: 64px;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1420;
+    --surface: #1a2130;
+    --surface-2: #232c3f;
+    --border: #2a3448;
+    --text: #e6e9ef;
+    --text-light: #9aa4b8;
+    --muted: #6b748c;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    --shadow-lift: 0 6px 22px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    transition: background var(--t-med), color var(--t-med);
+    /* leave room for the fixed bottom nav on mobile */
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .wrap {
+    max-width: 640px; margin: 0 auto;
+    padding: 0 1rem 1rem;
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+  }
+
+  /* ---------- Gradient banner header ---------- */
+  header.app-head {
+    background: var(--banner-grad);
+    color: #fff;
+    border-radius: 0 0 18px 18px;
+    box-shadow: var(--shadow);
+    margin: 0 -1rem 1rem;
+    padding: 1rem 1.1rem 1.1rem;
+    padding-left: calc(1.1rem + env(safe-area-inset-left));
+    padding-right: calc(1.1rem + env(safe-area-inset-right));
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .logo {
+    width: 40px; height: 40px; flex: 0 0 auto; border-radius: 11px;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  .logo svg { width: 23px; height: 23px; }
+  .title-group { min-width: 0; }
+  .title-line { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+  .title-group h1 {
+    font-size: 1.2rem; margin: 0; letter-spacing: -0.2px; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ver-tag {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.3px;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22); color: #fff; border: 1px solid rgba(255,255,255,0.3);
+    white-space: nowrap;
+  }
+  .title-group p { margin: 0; font-size: 0.74rem; color: rgba(255, 255, 255, 0.85); }
+  .head-actions { margin-left: auto; display: flex; gap: 0.35rem; }
+
+  .icon-btn {
+    width: var(--tap); height: var(--tap); display: grid; place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.15);
+    color: #fff; border-radius: 11px; cursor: pointer; font-size: 1.15rem;
+    transition: transform var(--t-fast), background var(--t-fast);
+  }
+  .icon-btn:active { transform: scale(0.94); background: rgba(255, 255, 255, 0.28); }
+  .icon-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  /* ---------- Panels ---------- */
+  .panel[hidden] { display: none; }
+
+  /* ---------- Add / edit form ---------- */
+  .add-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem; margin-bottom: 1rem;
+  }
+  .add-card h2 { font-size: 0.95rem; margin: 0 0 0.8rem; color: var(--text-light); font-weight: 600; }
+  .field-row { display: flex; flex-direction: column; gap: 0.8rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  label { font-size: 0.78rem; color: var(--text-light); font-weight: 600; }
+  .repeat-hint { font-size: 0.74rem; color: var(--muted); margin-top: 0.1rem; }
+  .interval-row { display: flex; gap: 0.5rem; }
+  .interval-row input { flex: 0 0 90px; }
+  .interval-row select { flex: 1 1 auto; }
+
+  input, select, textarea {
+    font-family: var(--font); font-size: 16px; padding: 0.7rem 0.75rem;
+    min-height: var(--tap); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface-2); color: var(--text); width: 100%;
+    transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  }
+  select { -webkit-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-light) 50%), linear-gradient(135deg, var(--text-light) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 1.25rem, calc(100% - 13px) 1.25rem;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 2rem;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  .form-foot { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
+  .btn {
+    font-family: var(--font); font-size: 1rem; font-weight: 600;
+    padding: 0.8rem 1.1rem; min-height: var(--tap); border-radius: var(--radius-sm);
+    border: 1px solid transparent; cursor: pointer; width: 100%;
+    transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: var(--text-light); border-color: var(--border); }
+
+  /* ---------- View heading ---------- */
+  .view-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }
+  .view-head h2 { font-size: 1.1rem; margin: 0; }
+  .view-head .count { font-size: 0.8rem; color: var(--text-light); }
+  .view-head .spacer { margin-left: auto; }
+  .view-head select { width: auto; flex: 0 0 auto; }
+
+  /* ---------- Event cards ---------- */
+  .events { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+  .event {
+    position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-left: 5px solid var(--primary); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 0.9rem 1rem;
+    display: grid; grid-template-columns: 1fr auto;
+    grid-template-areas: "count count" "main main" "actions actions";
+    gap: 0.5rem 0.75rem;
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+    animation: pop var(--t-med);
+  }
+  .event.past { border-left-color: var(--muted); opacity: 0.85; }
+  .event.soon { border-left-color: var(--accent); }
+  .event.today { border-left-color: var(--ok); }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .ev-count { grid-area: count; display: flex; align-items: baseline; gap: 0.4rem; }
+  .ev-count .big { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .event.past .ev-count .big { color: var(--muted); }
+  .event.soon .ev-count .big { color: var(--accent); }
+  .event.today .ev-count .big { color: var(--ok); }
+  .ev-count .unit { font-size: 0.78rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+  .ev-count .sub { font-size: 0.74rem; color: var(--muted); margin-left: auto; align-self: center; font-variant-numeric: tabular-nums; }
+
+  .ev-main { grid-area: main; min-width: 0; }
+  .ev-title { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .cat-chip, .repeat-chip {
+    font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-light);
+  }
+  .repeat-chip { border-color: var(--primary); color: var(--primary); }
+  .ev-date { font-size: 0.82rem; color: var(--text-light); margin-top: 0.2rem; }
+  .ev-notes { font-size: 0.84rem; color: var(--muted); margin-top: 0.35rem; white-space: pre-wrap; word-break: break-word; }
+
+  .ev-actions { grid-area: actions; display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+  .mini-btn {
+    flex: 1 1 50%; min-height: var(--tap);
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-light);
+    border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+  }
+  .mini-btn:active { transform: scale(0.97); }
+  .mini-btn.del:active { border-color: var(--danger); color: var(--danger); }
+  .mini-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  .empty {
+    text-align: center; padding: 2.5rem 1rem; color: var(--text-light);
+    border: 1.5px dashed var(--border); border-radius: var(--radius); background: var(--surface);
+  }
+  .empty .em-ico { font-size: 2rem; display: block; margin-bottom: 0.4rem; }
+
+  /* ---------- Pagination controls ---------- */
+  .view-head .controls { display: flex; align-items: center; gap: 0.5rem; }
+  .pager { display: flex; align-items: center; gap: 0.25rem; }
+  .pager[hidden] { display: none; }
+  .pager-btn {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 9px; cursor: pointer; font-size: 1.1rem; line-height: 1;
+    transition: border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+  }
+  .pager-btn:disabled { opacity: 0.4; cursor: default; }
+  .pager-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+  .pager-info { font-size: 0.78rem; color: var(--text-light); min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Bottom navigation (mobile) — gradient banner to match the top ---------- */
+  .bottom-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    display: flex; align-items: stretch;
+    background: var(--banner-grad);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+  }
+  .nav-btn {
+    flex: 1 1 33%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border: none; background: transparent; cursor: pointer;
+    color: rgba(255, 255, 255, 0.72); font-size: 0.68rem; font-weight: 600;
+    transition: color var(--t-fast);
+  }
+  .nav-btn .nav-ico { font-size: 1.25rem; line-height: 1; }
+  .nav-btn .nav-badge {
+    font-size: 0.6rem; font-weight: 700; min-width: 15px; padding: 0 4px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22); color: #fff;
+    position: absolute; transform: translate(14px, -16px);
+  }
+  .nav-btn[aria-pressed="true"] { color: #fff; }
+  .nav-btn[aria-pressed="true"] .nav-badge { background: #fff; color: var(--primary-strong); }
+  .nav-btn:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+  .nav-btn .nav-label-wrap { position: relative; }
+
+  /* ---------- Palette / theme sheet ---------- */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 60;
+    opacity: 0; pointer-events: none; transition: opacity var(--t-med);
+  }
+  .sheet-backdrop.show { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+    background: var(--surface); border-radius: 18px 18px 0 0;
+    border-top: 1px solid var(--border); box-shadow: 0 -8px 30px rgba(0,0,0,0.3);
+    padding: 1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom));
+    transform: translateY(100%); transition: transform var(--t-med);
+    max-width: 640px; margin: 0 auto; max-height: 80vh; overflow-y: auto;
+  }
+  .sheet.show { transform: translateY(0); }
+  .sheet h2 { font-size: 1rem; margin: 0 0 0.2rem; }
+  .sheet .hint { font-size: 0.8rem; color: var(--text-light); margin: 0 0 0.9rem; }
+  .sheet .grip { width: 40px; height: 4px; border-radius: 999px; background: var(--border); margin: 0 auto 0.8rem; }
+
+  .mode-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  .mode-row button {
+    flex: 1 1 50%; min-height: var(--tap); border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-weight: 600;
+  }
+  .mode-row button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+
+  .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 0.6rem; }
+  .swatch {
+    cursor: pointer; border: 2px solid transparent; border-radius: 12px; padding: 0.4rem;
+    background: var(--surface-2); text-align: center; transition: border-color var(--t-fast), transform var(--t-fast);
+  }
+  .swatch:active { transform: scale(0.97); }
+  .swatch[aria-pressed="true"] { border-color: var(--text); }
+  .swatch .dots { display: flex; justify-content: center; gap: 3px; margin-bottom: 0.35rem; }
+  .swatch .dot { width: 18px; height: 18px; border-radius: 50%; }
+  .swatch .pname { font-size: 0.72rem; color: var(--text-light); font-weight: 600; }
+  .swatch:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  .app-footer {
+    margin-top: 2rem; padding: 1rem 0 0.5rem; border-top: 1px solid var(--border);
+    text-align: center; color: var(--text-light); font-size: 0.72rem; line-height: 1.6;
+    display: flex; flex-direction: column; gap: 0.1rem;
+  }
+  .app-footer-brand { color: var(--primary); font-weight: 600; letter-spacing: 0.2px; }
+  .app-footer-copy { opacity: 0.85; }
+
+  .toast {
+    position: fixed; left: 50%;
+    bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 1rem);
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); padding: 0.7rem 1.1rem; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600; box-shadow: var(--shadow-lift);
+    opacity: 0; pointer-events: none; max-width: calc(100vw - 2rem); text-align: center;
+    transition: opacity var(--t-med), transform var(--t-med); z-index: 70;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .visually-hidden {
+    position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  /* ===================== Desktop / tablet (>=600px) ===================== */
+  @media (min-width: 600px) {
+    body { padding-bottom: 1rem; } /* no fixed bottom bar */
+    .wrap { max-width: 720px; }
+
+    header.app-head { border-radius: 16px; margin: 0.6rem 0 0.4rem; }
+
+    /* top tab bar replaces the bottom nav; tabs pushed to the far right */
+    .top-tabs { display: flex; gap: 0.35rem; margin: 0 0 1rem; justify-content: flex-end; }
+    .top-tab {
+      flex: 0 0 auto; min-height: var(--tap); padding: 0 1rem;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-light);
+      border-radius: 999px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
+    }
+    .top-tab[aria-pressed="true"] { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .top-tab-add { color: var(--primary); border-color: var(--primary); font-weight: 700; }
+    .top-tab-add[aria-pressed="true"] { background: var(--primary); color: #fff; }
+    .top-tab .t-badge { font-size: 0.7rem; font-weight: 700; padding: 0 5px; border-radius: 999px; background: var(--surface-2); color: var(--text-light); }
+    .top-tab[aria-pressed="true"] .t-badge { background: rgba(255,255,255,0.25); color: #fff; }
+    .bottom-nav { display: none; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 0.7rem; }
+    .field.full { grid-column: 1 / -1; }
+    .form-foot { flex-direction: row; }
+    .btn { width: auto; }
+    .btn-primary { min-width: 160px; }
+
+    .event { display: flex; align-items: center; gap: 1rem; }
+    .ev-count { order: 2; flex-direction: column; align-items: flex-end; text-align: right; min-width: 110px; }
+    .ev-count .big { font-size: 1.7rem; }
+    .ev-count .sub { margin-left: 0; }
+    .ev-main { order: 1; flex: 1 1 auto; }
+    .ev-actions { order: 3; flex: 0 0 auto; flex-direction: column; margin-top: 0; }
+    .mini-btn { flex: 0 0 auto; width: 40px; min-height: 40px; padding: 0; }
+    .mini-btn .lbl { display: none; }
+
+    .sheet { border-radius: 16px; bottom: auto; top: 50%; left: 50%; right: auto;
+      transform: translate(-50%, -50%) scale(0.96); width: 460px; max-height: 84vh; }
+    .sheet.show { transform: translate(-50%, -50%) scale(1); }
+    .toast { bottom: 1.5rem; }
+  }
+  /* top tabs are hidden on mobile (bottom nav is used instead) */
+  @media (max-width: 599px) { .top-tabs { display: none; } }
+
+  @media (hover: hover) and (pointer: fine) {
+    .icon-btn:hover { background: rgba(255,255,255,0.3); }
+    .btn-primary:hover { background: var(--primary-strong); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--text); }
+    .event:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+    .mini-btn:hover { border-color: var(--primary); color: var(--text); }
+    .mini-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+    .swatch:hover { border-color: var(--primary); }
+    .nav-btn:hover { color: #fff; }
+    .pager-btn:not(:disabled):hover { border-color: var(--primary); color: var(--primary); }
+    .top-tab:hover { border-color: var(--primary); color: var(--text); }
+    .top-tab[aria-pressed="true"]:hover { color: #fff; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-head">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+          <path d="M3 9h18" />
+          <path d="M8 3v3" />
+          <path d="M16 3v3" />
+          <text x="12" y="17.5" fill="#fff" stroke="none" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="7" font-weight="700" text-anchor="middle">7</text>
+        </svg>
+      </span>
+      <div class="title-group">
+        <div class="title-line">
+          <h1>Countdown Timer</h1>
+          <span class="ver-tag" id="verTag">v1.2.2</span>
+        </div>
+        <p>Days until the moments that matter</p>
+      </div>
+      <div class="head-actions">
+        <button class="icon-btn" id="btnPalette" title="Personalise theme" aria-label="Personalise theme and colours">&#127912;</button>
+        <button class="icon-btn" id="btnExport" title="Export events (JSON backup)" aria-label="Export events as a JSON backup">&#8681;</button>
+        <button class="icon-btn" id="btnImport" title="Import events from a backup" aria-label="Import events from a JSON backup">&#8679;</button>
+      </div>
+    </header>
+
+    <!-- Top tabs (desktop/tablet only) -->
+    <nav class="top-tabs" aria-label="Views">
+      <button class="top-tab" type="button" data-view="upcoming" aria-pressed="true">Upcoming <span class="t-badge" id="tBadgeUpcoming">0</span></button>
+      <button class="top-tab" type="button" data-view="past" aria-pressed="false">Past <span class="t-badge" id="tBadgePast">0</span></button>
+      <button class="top-tab top-tab-add" type="button" data-view="add" aria-pressed="false">&#43; Add</button>
+    </nav>
+
+    <!-- Add / edit panel -->
+    <section class="panel" id="panelAdd" role="region" aria-label="Add or edit a countdown" hidden>
+      <form class="add-card" id="eventForm" autocomplete="off">
+        <h2 id="formHeading">Add a countdown</h2>
+        <input type="hidden" id="editId" value="" />
+        <div class="field-row">
+          <div class="field full">
+            <label for="fTitle">Event name</label>
+            <input type="text" id="fTitle" maxlength="80" placeholder="e.g. Mum's birthday" required />
+          </div>
+          <div class="field">
+            <label for="fDate">Date</label>
+            <input type="date" id="fDate" required />
+          </div>
+          <div class="field">
+            <label for="fTime">Time <span style="font-weight:400">(optional)</span></label>
+            <input type="time" id="fTime" />
+          </div>
+          <div class="field">
+            <label for="fCategory">Category</label>
+            <select id="fCategory">
+              <option value="General">General</option>
+              <option value="Birthday">Birthday</option>
+              <option value="Deadline">Deadline</option>
+              <option value="Holiday">Holiday</option>
+              <option value="Anniversary">Anniversary</option>
+              <option value="Trip">Trip</option>
+              <option value="Event">Event</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fRepeat">Repeat</label>
+            <select id="fRepeat">
+              <option value="none">Does not repeat</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom…</option>
+            </select>
+            <span class="repeat-hint" id="repeatHint">A repeating event always counts down to its next occurrence.</span>
+          </div>
+          <div class="field" id="customRepeatField" hidden>
+            <label for="fRepeatEvery">Repeat every</label>
+            <div class="interval-row">
+              <input type="number" id="fRepeatEvery" min="1" max="999" step="1" value="1" inputmode="numeric" aria-label="Interval number" />
+              <select id="fRepeatUnit" aria-label="Interval unit">
+                <option value="day">day(s)</option>
+                <option value="week">week(s)</option>
+                <option value="month">month(s)</option>
+                <option value="year">year(s)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field full">
+            <label for="fNotes">Notes <span style="font-weight:400">(optional)</span></label>
+            <input type="text" id="fNotes" maxlength="140" placeholder="A short note" />
+          </div>
+        </div>
+        <div class="form-foot">
+          <button type="submit" class="btn btn-primary" id="btnSave">Save</button>
+          <button type="button" class="btn btn-ghost" id="btnCancel">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- List panel (Upcoming / Past share this) -->
+    <section class="panel" id="panelList" role="region" aria-label="Events">
+      <div class="view-head">
+        <h2 id="viewTitle">Upcoming</h2>
+        <span class="count" id="listCount" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <div class="controls">
+          <label for="sortBy" class="visually-hidden">Sort events</label>
+          <select id="sortBy" title="Sort events">
+            <option value="soonest">Nearest first</option>
+            <option value="latest">Furthest first</option>
+            <option value="name">By name</option>
+            <option value="category">By category</option>
+          </select>
+          <div class="pager" id="pager" hidden>
+            <button class="pager-btn" id="pagePrev" title="Previous page" aria-label="Previous page">&#8249;</button>
+            <span class="pager-info" id="pageInfo" aria-live="polite">1 / 1</span>
+            <button class="pager-btn" id="pageNext" title="Next page" aria-label="Next page">&#8250;</button>
+          </div>
+        </div>
+      </div>
+      <ul class="events" id="eventList" aria-live="polite"></ul>
+    </section>
+
+    <footer class="app-footer no-print">
+      <span class="app-footer-brand">Powered by Forj&eacute;</span>
+      <span class="app-footer-copy">&copy; 2026 Isaac A Gera. All rights reserved.</span>
+    </footer>
+  </div>
+
+  <!-- Bottom navigation (mobile): Upcoming · Add · Past -->
+  <nav class="bottom-nav" aria-label="Views">
+    <button class="nav-btn" type="button" data-view="upcoming" aria-pressed="true">
+      <span class="nav-ico" aria-hidden="true">&#9201;</span>
+      <span class="nav-label-wrap">Upcoming<span class="nav-badge" id="navBadgeUpcoming">0</span></span>
+    </button>
+    <button class="nav-btn" type="button" data-view="add" aria-pressed="false">
+      <span class="nav-ico" aria-hidden="true">&#43;</span>
+      <span>Add</span>
+    </button>
+    <button class="nav-btn" type="button" data-view="past" aria-pressed="false">
+      <span class="nav-ico" aria-hidden="true">&#128336;</span>
+      <span class="nav-label-wrap">Past<span class="nav-badge" id="navBadgePast">0</span></span>
+    </button>
+  </nav>
+
+  <!-- Palette / theme sheet -->
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet" id="paletteSheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="grip"></div>
+    <h2 id="sheetTitle">Personalise</h2>
+    <p class="hint">Pick a colour and a light or dark mode. Saved on this device.</p>
+    <div class="mode-row" role="group" aria-label="Light or dark mode">
+      <button id="modeLight" aria-pressed="false">&#9728; Light</button>
+      <button id="modeDark" aria-pressed="false">&#9790; Dark</button>
+    </div>
+    <div class="palette-grid" id="paletteGrid" role="group" aria-label="Colour theme"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="importFile" accept="application/json,.json" style="display:none" />
+
+<script>
+(function () {
+  "use strict";
+
+  var APP_VERSION = "1.2.2";
+
+  /* ---------- Palette presets (Travel-Planner style) ---------- */
+  // Eight hues spread around the colour wheel so each reads distinctly.
+  var PALETTES = [
+    { id: "blue",    name: "Blue",    primary: "#3b82f6", strong: "#2563c0", accent: "#e0a94a" },
+    { id: "teal",    name: "Teal",    primary: "#0d9488", strong: "#0a6c63", accent: "#f2994a" },
+    { id: "green",   name: "Green",   primary: "#22a85a", strong: "#16803f", accent: "#d9564f" },
+    { id: "amber",   name: "Amber",   primary: "#d99411", strong: "#a66f08", accent: "#3a8fb0" },
+    { id: "orange",  name: "Orange",  primary: "#e2622a", strong: "#b4481a", accent: "#3a8fb0" },
+    { id: "crimson", name: "Crimson", primary: "#d12f4b", strong: "#a11f38", accent: "#3aa6a0" },
+    { id: "purple",  name: "Purple",  primary: "#8b3fd1", strong: "#6a2aa6", accent: "#4cae8a" },
+    { id: "magenta", name: "Magenta", primary: "#c0379a", strong: "#932874", accent: "#4cae8a" }
+  ];
+  var PALETTE_KEY = "cd_palette";
+  var THEME_KEY = "cd_theme";
+
+  function paletteById(id) { return PALETTES.find(function (p) { return p.id === id; }) || PALETTES[0]; }
+  function applyPalette(id) {
+    var p = paletteById(id);
+    var s = document.documentElement.style;
+    s.setProperty("--primary", p.primary);
+    s.setProperty("--primary-strong", p.strong);
+    s.setProperty("--accent", p.accent);
+  }
+
+  /* =====================================================================
+     EventStore — the SHARED, integration-ready data layer.
+     Designed to be lifted wholesale into the future Event Planner app:
+     app-neutral storage key, one event schema, one export envelope.
+
+     Event schema (v1):
+       { id, title, date (ISO; YYYY-MM-DD all-day or full ISO when timed),
+         allDay, category, repeat (none|weekly|monthly|yearly|custom),
+         repeatEvery?, repeatUnit? (custom only), notes, createdAt, updatedAt, source }
+     Export envelope: { type:"forje-events", schemaVersion, exportedAt, app, appVersion, events }
+  ===================================================================== */
+  var EventStore = (function () {
+    var STORAGE_KEY = "forje_events_v1"; // shared namespace, not app-specific
+    var SCHEMA_VERSION = 1;
+    var SOURCE = "countdown";
+
+    function uid() { return "ev_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8); }
+    function load() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        var data = JSON.parse(raw);
+        if (!Array.isArray(data)) return [];
+        return data.filter(validate);
+      } catch (e) { console.warn("EventStore parse failed — starting empty.", e); return []; }
+    }
+    function save(events) { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); }
+    function validate(ev) { return ev && typeof ev.id === "string" && typeof ev.title === "string" && typeof ev.date === "string"; }
+
+    var VALID_REPEAT = { none: 1, weekly: 1, monthly: 1, yearly: 1, custom: 1 };
+    var VALID_UNIT = { day: 1, week: 1, month: 1, year: 1 };
+    function normalise(input) {
+      var now = new Date().toISOString();
+      var repeat = (input.repeat && VALID_REPEAT[input.repeat]) ? input.repeat : "none";
+      var out = {
+        id: input.id || uid(),
+        title: String(input.title || "").trim().slice(0, 80),
+        date: input.date,
+        allDay: !!input.allDay,
+        category: input.category || "General",
+        repeat: repeat,
+        notes: String(input.notes || "").trim().slice(0, 140),
+        createdAt: input.createdAt || now,
+        updatedAt: now,
+        source: input.source || SOURCE
+      };
+      if (repeat === "custom") {
+        var n = parseInt(input.repeatEvery, 10);
+        out.repeatEvery = (isNaN(n) || n < 1) ? 1 : Math.min(n, 999);
+        out.repeatUnit = VALID_UNIT[input.repeatUnit] ? input.repeatUnit : "week";
+      }
+      return out;
+    }
+
+    return {
+      STORAGE_KEY: STORAGE_KEY, SCHEMA_VERSION: SCHEMA_VERSION,
+      all: function () { return load(); },
+      add: function (input) { var e = load(); var ev = normalise(input); e.push(ev); save(e); return ev; },
+      update: function (id, input) {
+        var e = load(); var i = e.findIndex(function (x) { return x.id === id; });
+        if (i === -1) return null;
+        var merged = normalise(Object.assign({}, e[i], input, { id: id, createdAt: e[i].createdAt }));
+        e[i] = merged; save(e); return merged;
+      },
+      remove: function (id) { save(load().filter(function (x) { return x.id !== id; })); },
+      get: function (id) { return load().find(function (x) { return x.id === id; }) || null; },
+      exportEnvelope: function () {
+        return { type: "forje-events", schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(),
+          app: "Countdown Timer", appVersion: APP_VERSION, events: load() };
+      },
+      importEnvelope: function (payload) {
+        var incoming = [];
+        if (Array.isArray(payload)) incoming = payload;
+        else if (payload && payload.type === "forje-events" && Array.isArray(payload.events)) incoming = payload.events;
+        else throw new Error("Unrecognised file — expected a forje-events backup.");
+        var current = load(), byId = {};
+        current.forEach(function (e) { byId[e.id] = e; });
+        var added = 0, updated = 0;
+        incoming.filter(validate).forEach(function (raw) {
+          var ev = normalise(raw);
+          if (byId[ev.id]) updated++; else added++;
+          byId[ev.id] = ev;
+        });
+        var merged = Object.keys(byId).map(function (k) { return byId[k]; });
+        save(merged);
+        return { added: added, updated: updated, total: merged.length };
+      }
+    };
+  })();
+
+  /* ---------- Countdown maths (recurrence-aware) ---------- */
+  var MS_DAY = 86400000;
+  function startOfDay(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+  function baseTarget(ev) {
+    if (ev.allDay) { var d = new Date(ev.date + "T00:00:00"); return isNaN(d) ? null : d; }
+    var t = new Date(ev.date); return isNaN(t) ? null : t;
+  }
+  function repeatStep(ev) {
+    switch (ev.repeat) {
+      case "weekly":  return { n: 1, unit: "week" };
+      case "monthly": return { n: 1, unit: "month" };
+      case "yearly":  return { n: 1, unit: "year" };
+      case "custom":  return { n: Math.max(1, parseInt(ev.repeatEvery, 10) || 1), unit: ev.repeatUnit || "week" };
+      default:        return null;
+    }
+  }
+  function advance(d, step) {
+    if (step.unit === "day") d.setDate(d.getDate() + step.n);
+    else if (step.unit === "week") d.setDate(d.getDate() + step.n * 7);
+    else if (step.unit === "month") d.setMonth(d.getMonth() + step.n);
+    else if (step.unit === "year") d.setFullYear(d.getFullYear() + step.n);
+  }
+  function occurrence(ev) {
+    var base = baseTarget(ev);
+    if (!base) return null;
+    var step = repeatStep(ev);
+    if (!step) return base;
+    var now = new Date();
+    var cmpNow = ev.allDay ? startOfDay(now) : now;
+    var d = new Date(base);
+    var guard = 0;
+    while ((ev.allDay ? startOfDay(d) : d) < cmpNow && guard < 20000) { advance(d, step); guard++; }
+    return d;
+  }
+  function daysUntil(ev) {
+    var tgt = occurrence(ev);
+    if (!tgt) return null;
+    if (ev.allDay) return Math.round((startOfDay(tgt) - startOfDay(new Date())) / MS_DAY);
+    return Math.floor((tgt - new Date()) / MS_DAY);
+  }
+  function breakdown(ev) {
+    var tgt = occurrence(ev);
+    if (!tgt) return null;
+    var diff = tgt - new Date(), abs = Math.abs(diff);
+    return { past: diff < 0, days: Math.floor(abs / MS_DAY), hours: Math.floor((abs % MS_DAY) / 3600000), mins: Math.floor((abs % 3600000) / 60000) };
+  }
+  function isPast(ev) {
+    if ((ev.repeat || "none") !== "none") return false;
+    var d = daysUntil(ev);
+    return d !== null && d < 0;
+  }
+  function statusClass(ev) {
+    var d = daysUntil(ev);
+    if (d === null) return "";
+    if (d < 0) return "past";
+    if (d === 0) return "today";
+    if (d <= 7) return "soon";
+    return "";
+  }
+  function fmtDate(ev) {
+    var tgt = occurrence(ev);
+    if (!tgt) return "Invalid date";
+    var opts = { weekday: "short", day: "numeric", month: "short", year: "numeric" };
+    var s = tgt.toLocaleDateString(undefined, opts);
+    if (!ev.allDay) s += " · " + tgt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    return s;
+  }
+  function repeatLabel(ev) {
+    var r = ev.repeat || "none";
+    if (r === "none") return "";
+    if (r === "custom") {
+      var n = Math.max(1, parseInt(ev.repeatEvery, 10) || 1);
+      var u = ev.repeatUnit || "week";
+      return n === 1 ? ("Every " + u) : ("Every " + n + " " + u + "s");
+    }
+    return r.charAt(0).toUpperCase() + r.slice(1);
+  }
+
+  /* ---------- UI refs ---------- */
+  var form = document.getElementById("eventForm");
+  var fTitle = document.getElementById("fTitle");
+  var fDate = document.getElementById("fDate");
+  var fTime = document.getElementById("fTime");
+  var fCategory = document.getElementById("fCategory");
+  var fRepeat = document.getElementById("fRepeat");
+  var fRepeatEvery = document.getElementById("fRepeatEvery");
+  var fRepeatUnit = document.getElementById("fRepeatUnit");
+  var customRepeatField = document.getElementById("customRepeatField");
+  var fNotes = document.getElementById("fNotes");
+  var editId = document.getElementById("editId");
+  var formHeading = document.getElementById("formHeading");
+  var btnSave = document.getElementById("btnSave");
+  var btnCancel = document.getElementById("btnCancel");
+  var listEl = document.getElementById("eventList");
+  var listCount = document.getElementById("listCount");
+  var viewTitle = document.getElementById("viewTitle");
+  var sortBy = document.getElementById("sortBy");
+  var toastEl = document.getElementById("toast");
+
+  var panelList = document.getElementById("panelList");
+  var panelAdd = document.getElementById("panelAdd");
+
+  var navButtons = Array.prototype.slice.call(document.querySelectorAll('.nav-btn, .top-tab'));
+  var navBadgeUpcoming = document.getElementById("navBadgeUpcoming");
+  var navBadgePast = document.getElementById("navBadgePast");
+  var tBadgeUpcoming = document.getElementById("tBadgeUpcoming");
+  var tBadgePast = document.getElementById("tBadgePast");
+
+  var pager = document.getElementById("pager");
+  var pagePrev = document.getElementById("pagePrev");
+  var pageNext = document.getElementById("pageNext");
+  var pageInfo = document.getElementById("pageInfo");
+
+  var currentView = "upcoming"; // upcoming | past | add
+  var PAGE_SIZE = 10;
+  var currentPage = 1;
+
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2600);
+  }
+
+  /* ---------- Navigation ---------- */
+  function markNav(view) {
+    navButtons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-view") === view ? "true" : "false");
+    });
+  }
+  function showList(view) {
+    currentView = view;
+    currentPage = 1;
+    panelAdd.hidden = true;
+    panelList.hidden = false;
+    viewTitle.textContent = view === "past" ? "Past events" : "Upcoming";
+    markNav(view);
+    render();
+  }
+  function showAdd() {
+    currentView = "add";
+    panelList.hidden = true;
+    panelAdd.hidden = false;
+    markNav("add");
+    fTitle.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  navButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = b.getAttribute("data-view");
+      if (v === "add") { if (!editId.value) resetForm(); showAdd(); }
+      else showList(v);
+    });
+  });
+
+  pagePrev.addEventListener("click", function () { if (currentPage > 1) { currentPage--; render(); } });
+  pageNext.addEventListener("click", function () { currentPage++; render(); });
+
+  /* ---------- Form ---------- */
+  function syncCustomRepeat() { customRepeatField.hidden = fRepeat.value !== "custom"; }
+  fRepeat.addEventListener("change", syncCustomRepeat);
+
+  function buildEventFromForm() {
+    var dateStr = fDate.value, timeStr = fTime.value, allDay = !timeStr;
+    var iso = allDay ? dateStr : new Date(dateStr + "T" + timeStr).toISOString();
+    var data = { title: fTitle.value, date: iso, allDay: allDay, category: fCategory.value, repeat: fRepeat.value, notes: fNotes.value };
+    if (fRepeat.value === "custom") { data.repeatEvery = fRepeatEvery.value; data.repeatUnit = fRepeatUnit.value; }
+    return data;
+  }
+  function resetForm() {
+    form.reset(); editId.value = "";
+    formHeading.textContent = "Add a countdown";
+    btnSave.textContent = "Save";
+    fCategory.value = "General"; fRepeat.value = "none";
+    fRepeatEvery.value = "1"; fRepeatUnit.value = "week";
+    syncCustomRepeat();
+    setDateToday();
+  }
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!fTitle.value.trim() || !fDate.value) { toast("Please add a name and a date."); return; }
+    var data = buildEventFromForm();
+    if (editId.value) { EventStore.update(editId.value, data); toast("Countdown updated."); }
+    else { EventStore.add(data); toast("Countdown added."); }
+    resetForm();
+    showList("upcoming");
+  });
+  btnCancel.addEventListener("click", function () { resetForm(); showList(currentView === "add" ? "upcoming" : currentView); });
+
+  function startEdit(id) {
+    var ev = EventStore.get(id);
+    if (!ev) return;
+    editId.value = ev.id;
+    fTitle.value = ev.title;
+    fCategory.value = ev.category || "General";
+    fRepeat.value = ev.repeat || "none";
+    fRepeatEvery.value = ev.repeatEvery ? String(ev.repeatEvery) : "1";
+    fRepeatUnit.value = ev.repeatUnit || "week";
+    syncCustomRepeat();
+    fNotes.value = ev.notes || "";
+    var tgt = baseTarget(ev);
+    if (tgt) {
+      var y = tgt.getFullYear(), m = String(tgt.getMonth() + 1).padStart(2, "0"), d = String(tgt.getDate()).padStart(2, "0");
+      fDate.value = y + "-" + m + "-" + d;
+      fTime.value = ev.allDay ? "" : String(tgt.getHours()).padStart(2, "0") + ":" + String(tgt.getMinutes()).padStart(2, "0");
+    }
+    formHeading.textContent = "Edit countdown";
+    btnSave.textContent = "Save";
+    showAdd();
+  }
+  function confirmDelete(id) {
+    var ev = EventStore.get(id);
+    if (!ev) return;
+    if (window.confirm('Delete "' + ev.title + '"? This cannot be undone.')) {
+      EventStore.remove(id);
+      toast("Countdown deleted.");
+      if (editId.value === id) resetForm();
+      render();
+    }
+  }
+
+  /* ---------- List ----------
+     "Nearest first" = closest to today. For Upcoming that's the earliest
+     future date (ascending); for Past that's the most recent past date
+     (descending). "Furthest first" is the reverse. */
+  function dateOrder(a, b) {
+    var da = occurrence(a), db = occurrence(b);
+    if (!da || !db) return 0;
+    var nearestAsc = da - db;
+    if (currentView === "past") nearestAsc = db - da;
+    return sortBy.value === "latest" ? -nearestAsc : nearestAsc;
+  }
+  function sortEvents(events) {
+    var mode = sortBy.value, copy = events.slice();
+    copy.sort(function (a, b) {
+      if (mode === "name") return a.title.localeCompare(b.title);
+      if (mode === "category") return (a.category || "").localeCompare(b.category || "") || dateOrder(a, b);
+      return dateOrder(a, b);
+    });
+    return copy;
+  }
+  function countLabel(ev) {
+    var d = daysUntil(ev);
+    if (d === null) return { big: "—", unit: "", sub: "Invalid date" };
+    if (d === 0) return { big: "Today", unit: "", sub: subLine(ev) };
+    if (d > 0) return { big: String(d), unit: d === 1 ? "day to go" : "days to go", sub: subLine(ev) };
+    return { big: String(Math.abs(d)), unit: Math.abs(d) === 1 ? "day ago" : "days ago", sub: "Passed" };
+  }
+  function subLine(ev) {
+    if (ev.allDay) return "";
+    var b = breakdown(ev);
+    if (!b || b.past) return "";
+    if (b.days > 0) return "+ " + b.hours + "h " + b.mins + "m";
+    return b.hours + "h " + b.mins + "m left";
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function updateBadges() {
+    var all = EventStore.all(), up = 0, past = 0;
+    all.forEach(function (ev) { if (isPast(ev)) past++; else up++; });
+    navBadgeUpcoming.textContent = tBadgeUpcoming.textContent = String(up);
+    navBadgePast.textContent = tBadgePast.textContent = String(past);
+  }
+
+  function render() {
+    updateBadges();
+    if (currentView === "add") return;
+
+    var all = EventStore.all();
+    var inView = all.filter(function (ev) { return currentView === "past" ? isPast(ev) : !isPast(ev); });
+    var events = sortEvents(inView);
+    listEl.innerHTML = "";
+
+    if (events.length === 0) {
+      pager.hidden = true;
+      listCount.textContent = "";
+      var li = document.createElement("li");
+      li.className = "empty";
+      if (all.length === 0) li.innerHTML = '<span class="em-ico">⏳</span>No countdowns yet. Use <strong>Add</strong> to create your first.';
+      else if (currentView === "past") li.innerHTML = '<span class="em-ico">✅</span>No past events. Everything is still ahead of you.';
+      else li.innerHTML = '<span class="em-ico">🎉</span>Nothing upcoming. Use <strong>Add</strong> to create a countdown.';
+      listEl.appendChild(li);
+      return;
+    }
+
+    // Pagination — 10 per page.
+    var totalPages = Math.ceil(events.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var pageEvents = events.slice(start, start + PAGE_SIZE);
+
+    listCount.textContent = events.length + " event" + (events.length === 1 ? "" : "s");
+
+    if (totalPages > 1) {
+      pager.hidden = false;
+      pageInfo.textContent = currentPage + " / " + totalPages;
+      pagePrev.disabled = currentPage <= 1;
+      pageNext.disabled = currentPage >= totalPages;
+    } else {
+      pager.hidden = true;
+    }
+
+    pageEvents.forEach(function (ev) {
+      var li = document.createElement("li");
+      li.className = "event " + statusClass(ev);
+      var c = countLabel(ev), rep = repeatLabel(ev);
+      li.innerHTML =
+        '<div class="ev-count">' +
+          '<span class="big">' + esc(c.big) + '</span>' +
+          (c.unit ? '<span class="unit">' + esc(c.unit) + '</span>' : '') +
+          (c.sub ? '<span class="sub">' + esc(c.sub) + '</span>' : '') +
+        '</div>' +
+        '<div class="ev-main">' +
+          '<div class="ev-title">' + esc(ev.title) +
+            '<span class="cat-chip">' + esc(ev.category || "General") + '</span>' +
+            (rep ? '<span class="repeat-chip" title="Repeats">↻ ' + esc(rep) + '</span>' : '') +
+          '</div>' +
+          '<div class="ev-date">' + esc(fmtDate(ev)) + '</div>' +
+          (ev.notes ? '<div class="ev-notes">' + esc(ev.notes) + '</div>' : '') +
+        '</div>' +
+        '<div class="ev-actions">' +
+          '<button class="mini-btn edit" title="Edit" aria-label="Edit ' + esc(ev.title) + '">✎<span class="lbl">Edit</span></button>' +
+          '<button class="mini-btn del" title="Delete" aria-label="Delete ' + esc(ev.title) + '">🗑<span class="lbl">Delete</span></button>' +
+        '</div>';
+      li.querySelector(".edit").addEventListener("click", function () { startEdit(ev.id); });
+      li.querySelector(".del").addEventListener("click", function () { confirmDelete(ev.id); });
+      listEl.appendChild(li);
+    });
+  }
+  sortBy.addEventListener("change", function () { currentPage = 1; render(); });
+
+  /* ---------- Export / Import ---------- */
+  document.getElementById("btnExport").addEventListener("click", function () {
+    var all = EventStore.all();
+    if (all.length === 0) { toast("Nothing to export yet."); return; }
+    var blob = new Blob([JSON.stringify(EventStore.exportEnvelope(), null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = "countdown-events-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast("Exported " + all.length + " event" + (all.length === 1 ? "" : "s") + ".");
+  });
+  var importFile = document.getElementById("importFile");
+  document.getElementById("btnImport").addEventListener("click", function () { importFile.click(); });
+  importFile.addEventListener("change", function () {
+    var file = importFile.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try { var res = EventStore.importEnvelope(JSON.parse(reader.result)); render(); toast("Imported: " + res.added + " new, " + res.updated + " updated."); }
+      catch (e) { toast("Import failed: " + e.message); }
+      importFile.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------- Palette / theme sheet ---------- */
+  var sheet = document.getElementById("paletteSheet");
+  var backdrop = document.getElementById("sheetBackdrop");
+  var paletteGrid = document.getElementById("paletteGrid");
+  var modeLight = document.getElementById("modeLight");
+  var modeDark = document.getElementById("modeDark");
+
+  function currentMode() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+  function applyMode(mode) {
+    document.documentElement.setAttribute("data-theme", mode);
+    modeLight.setAttribute("aria-pressed", mode === "light" ? "true" : "false");
+    modeDark.setAttribute("aria-pressed", mode === "dark" ? "true" : "false");
+  }
+  function setMode(mode) { applyMode(mode); localStorage.setItem(THEME_KEY, mode); }
+  modeLight.addEventListener("click", function () { setMode("light"); });
+  modeDark.addEventListener("click", function () { setMode("dark"); });
+
+  function currentPalette() { return localStorage.getItem(PALETTE_KEY) || "blue"; }
+  function setPalette(id) { localStorage.setItem(PALETTE_KEY, id); applyPalette(id); markSwatch(id); }
+  function markSwatch(id) {
+    Array.prototype.forEach.call(paletteGrid.children, function (el) {
+      el.setAttribute("aria-pressed", el.getAttribute("data-id") === id ? "true" : "false");
+    });
+  }
+  function buildPaletteGrid() {
+    paletteGrid.innerHTML = "";
+    PALETTES.forEach(function (p) {
+      var b = document.createElement("button");
+      b.className = "swatch"; b.type = "button"; b.setAttribute("data-id", p.id);
+      b.setAttribute("aria-label", "Use the " + p.name + " colour theme");
+      b.innerHTML = '<span class="dots"><span class="dot" style="background:' + p.primary + '"></span><span class="dot" style="background:' + p.accent + '"></span></span><span class="pname">' + p.name + '</span>';
+      b.addEventListener("click", function () { setPalette(p.id); });
+      paletteGrid.appendChild(b);
+    });
+    markSwatch(currentPalette());
+  }
+  function openSheet() {
+    sheet.hidden = false;
+    requestAnimationFrame(function () { backdrop.classList.add("show"); sheet.classList.add("show"); });
+    applyMode(currentMode()); markSwatch(currentPalette());
+  }
+  function closeSheet() {
+    backdrop.classList.remove("show"); sheet.classList.remove("show");
+    setTimeout(function () { sheet.hidden = true; }, 220);
+  }
+  document.getElementById("btnPalette").addEventListener("click", openSheet);
+  backdrop.addEventListener("click", closeSheet);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !sheet.hidden) closeSheet(); });
+
+  /* ---------- Live tick ---------- */
+  setInterval(render, 60000);
+
+  /* ---------- Boot ---------- */
+  function setDateToday() {
+    var t = new Date();
+    fDate.value = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+  }
+  (function initTheme() {
+    var savedMode = localStorage.getItem(THEME_KEY);
+    if (savedMode) applyMode(savedMode);
+    else applyMode(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    applyPalette(currentPalette());
+  })();
+  buildPaletteGrid();
+  setDateToday();
+  showList("upcoming");
+
+  /* ---------- Service worker ---------- */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function (e) {
+        console.warn("SW registration failed:", e);
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
