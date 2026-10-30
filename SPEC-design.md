@@ -1,6 +1,6 @@
 ﻿# Countdown to Date — Design
 
-- **Category:** Productivity | **Tier:** Simple | **Version:** 1.2.0 (display name "Countdown Timer")
+- **Category:** Productivity | **Tier:** Simple | **Version:** 1.2.4 (display name "Countdown")
 
 ## Stack choice & justification
 Vanilla HTML/CSS/JS in a single `index.html`, plus a manifest, service worker and icons.

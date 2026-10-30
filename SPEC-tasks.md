@@ -1,6 +1,6 @@
 ﻿# Countdown to Date — Tasks
 
-Display name: **Countdown Timer**. Current version **1.2.0**.
+Display name: **Countdown** (in-app) / **Countdown Timer** (full). Current version **1.2.4** — Built, live on GitHub Pages (github.com/isaacgera/CountdownTimer).
 
 ## Done — v1.0.0 (30 Oct 2026)
 - [x] Requirements, design, build v1 — add/edit/delete, live countdown, sort/filter,
@@ -35,15 +35,19 @@ Display name: **Countdown Timer**. Current version **1.2.0**.
       (no PyPI). App installs on the SVG icons. `icons/generate-icons.py` ready to run
       off-network; regenerate for the calendar mark when possible.
 
-## Awaiting Isaac (before Built)
-- [ ] Deploy and **real-device PWA test**: install on iPhone, verify offline, icon, and that
-      the SW cache bump served the new build (hard refresh / reopen the installed app).
-- [ ] Spot-check: tabs + bottom bar, Add, recurring incl. custom interval, pagination,
-      palette/theme, export→import round-trip, Past "nearest" ordering.
-- [x] Licence — MIT LICENSE added (Copyright (c) 2026 Isaac A. Gera). Optional README still pending.
-- [ ] On sign-off: Ideas.md status → `Built (Countdown to Date v1.2.0)`.
+## Sign-off — done (v1.2.1–v1.2.4, post-deploy)
+- [x] Pushed to GitHub (github.com/isaacgera/CountdownTimer) + GitHub Pages enabled.
+- [x] PWA manifest fixes: square PNG icons generated (stdlib, no Pillow) + screenshots;
+      Manifest panel clean (v1.2.1/v1.2.2).
+- [x] Real-device (iPhone) test surfaced mobile-only issues; fixed in v1.2.3:
+      emoji/Unicode icons → matched SVG line icons (header, bottom-nav, empty states),
+      non-wrapping title row, larger bottom-nav + inline count badges.
+- [x] v1.2.4 — shortened in-app title to "Countdown" so it no longer truncates on mobile.
+- [x] Licence — MIT LICENSE (Copyright (c) 2026 Isaac A. Gera).
+- [x] Ideas.md status → `Built (Countdown Timer v1.2.4)`.
 
 ## Later (v1.3+ candidates)
+- [ ] Optional README for the repo.
+- [ ] Replace placeholder PWA icons/screenshots with higher-fidelity renders off-network.
 - [ ] Notifications / reminders (OS permissions; iOS-PWA-sensitive).
-- [ ] Regenerate PNG icons for the calendar mark; re-add to manifest.
 - [ ] When Event Planner is built: lift `EventStore`, extend the shared record.

@@ -93,3 +93,38 @@ over several rounds (v1.1.0 → v1.3.3-proto), then ported into the live app in 
 **Awaiting Isaac (before Built):** deploy + real-device PWA install/offline test (SW cache bump
 means a hard refresh / reopening the installed app to pick up the new build), feature spot-check,
 licence choice. On sign-off → Ideas.md `Built (Countdown to Date v1.2.0)`.
+
+## v1.2.1–v1.2.4 — deploy, PWA fixes, device test & sign-off (30 Oct 2026)
+Shipped to GitHub and tested on a real iPhone; the device surfaced issues neither desktop
+nor the emulator showed. Closed out as **Built**.
+
+- **Repo + deploy:** new public repo `github.com/isaacgera/CountdownTimer` (one-app-per-repo,
+  matching Splitzy); `main` pushed; GitHub Pages enabled (deploy from `main` / root). Live at
+  `https://isaacgera.github.io/CountdownTimer/`. `prototypes/` excluded via `.gitignore`;
+  `sample-events.json` kept; local `CountdownTimer_*.json` convenience copies git-ignored.
+- **v1.2.1 / v1.2.2 — PWA manifest:** DevTools Manifest panel flagged failed SVG icon loads +
+  "needs square icons" + missing screenshots. Generated square PNG icons (192/512 + maskable)
+  and two screenshots with a **stdlib-only** script (`icons/make-png-icons.py`,
+  `make-screenshots.py`) — no Pillow/network, which had been the blocker. Dropped the fussy
+  SVGs from the manifest icon array (kept as favicon). Manifest panel clean.
+- **v1.2.3 — real-device UI fixes (iPhone):** emoji/Unicode icons rendered as colour emoji on
+  iOS; replaced header (palette/export/import), bottom-nav (Upcoming/Add/Past) and empty-state
+  icons with matched **SVG line icons**. Fixed the header title wrapping (title + version pill
+  on one row, tagline beneath) and enlarged the bottom nav with inline count badges.
+- **v1.2.4 — title fit:** shortened the in-app title to **"Countdown"** (full name
+  "Countdown Timer" retained for the browser tab / installed-app name) so it no longer
+  truncates on a phone.
+- **Licence:** MIT (`Copyright (c) 2026 Isaac A. Gera`).
+
+**Verified:** Isaac installed and tested on iPhone via GitHub Pages; UI issues resolved.
+**Status:** **Built (Countdown Timer v1.2.4)** — Ideas.md updated.
+
+**Lesson for next time:** a Simple-tier tool stretched across many refinement rounds. Two
+things would have trimmed it: (1) do the real-device PWA check *early* (emoji-vs-SVG and the
+title wrap only ever showed on the actual iPhone, not desktop/emulator), and (2) treat icon/
+PWA-manifest assets as a known up-front task rather than discovering the square-PNG + MIME
+issues at deploy. Worth remembering before polishing the next small app.
+
+## Follow-ups (optional, not blocking)
+- Repo README.
+- Higher-fidelity PWA icons/screenshots (current ones are simple stdlib-drawn placeholders).

@@ -2,8 +2,8 @@
 
 - **Category:** Productivity
 - **Complexity tier:** Simple
-- **Status:** In Progress (v1.2.0 code-complete, awaiting Isaac's device sign-off)
-- **Version:** 1.2.0 (display name "Countdown Timer"; folder/backlog id remains "Countdown to Date")
+- **Status:** Built — v1.2.4, live on GitHub Pages, device-tested on iPhone
+- **Version:** 1.2.4 (display name "Countdown" in-app / "Countdown Timer" full; folder/backlog id remains "Countdown to Date")
 - **Stack:** Vanilla HTML/CSS/JS, single file + PWA plumbing (no build step)
 - **Platforms:** Desktop web, mobile web, installable PWA
 - **Data stance:** Local-first. All data in `localStorage`; nothing leaves the device.
