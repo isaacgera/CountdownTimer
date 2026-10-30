@@ -1,6 +1,6 @@
 // Countdown Timer — service worker
 // Bump CACHE_NAME on every release so clients pick up fresh assets.
-var CACHE_NAME = 'countdown-v1.2.2';
+var CACHE_NAME = 'countdown-v1.2.3';
 
 // Core assets — cached atomically on install (install fails if any are missing).
 var CORE_ASSETS = [
